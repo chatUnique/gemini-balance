@@ -165,13 +165,24 @@ def setup_key_management_routes(app: FastAPI) -> None:
                     "message": "未提供有效的密钥"
                 }, status_code=400)
             
+            logger.info(f"Processing request to add {len(keys_list)} keys")
+            import time
+            start_time = time.time()
+            
             key_manager = await get_key_manager_instance()
-            added_keys, existing_keys = await key_manager.add_keys(keys_list)
+            added_keys, invalid_keys, existing_keys = await key_manager.add_keys(keys_list)
+            
+            elapsed_time = time.time() - start_time
+            logger.info(
+                f"Key validation completed in {elapsed_time:.2f} seconds. "
+                f"Added: {len(added_keys)}, Invalid: {len(invalid_keys)}, Existing: {len(existing_keys)}"
+            )
             
             return JSONResponse({
                 "status": "success",
-                "message": f"成功添加 {len(added_keys)} 个密钥, {len(existing_keys)} 个已存在",
+                "message": f"成功添加 {len(added_keys)} 个密钥, {len(invalid_keys)} 个无效, {len(existing_keys)} 个已存在",
                 "added_keys": added_keys,
+                "invalid_keys": invalid_keys,
                 "existing_keys": existing_keys
             })
         except Exception as e:
