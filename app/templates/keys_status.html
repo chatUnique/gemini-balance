@@ -640,6 +640,11 @@
             </div>
         </div>
     </div>
+
+    <div class="copyright">
+        © <script>document.write(new Date().getFullYear())</script> by
+        <a href="https://github.com/snailyp/gemini-balance" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+    </div>
     
     <script src="/static/js/keys_status.js"></script>
     <script>
@@ -731,6 +736,43 @@
                 showCopyStatus('添加密钥失败，请检查输入格式', 'error');
             }
         }
+        
+        // 确保这个函数在全局作用域中定义
+        function clearInput() {
+            // 获取输入框元素
+            const textarea = document.getElementById('keysInput');
+            
+            // 检查元素是否存在
+            if (!textarea) {
+                console.error('找不到ID为keysInput的元素');
+                return;
+            }
+            
+            // 清空输入框
+            textarea.value = '';
+            
+            // 可选：让输入框获得焦点
+            textarea.focus();
+            
+            console.log('输入已清空'); // 调试信息
+        }
+        
+        // 确保在页面加载完成后绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 查找清空按钮
+            const clearButton = document.querySelector('.clear-btn');
+            
+            if (clearButton) {
+                // 移除可能存在的旧事件监听器
+                clearButton.removeEventListener('click', clearInput);
+                // 添加新的事件监听器
+                clearButton.addEventListener('click', clearInput);
+                
+                console.log('清空按钮事件已绑定'); // 调试信息
+            } else {
+                console.error('找不到清空按钮元素');
+            }
+        });
         
         // 确认删除密钥
         function confirmRemoveKey(key) {
