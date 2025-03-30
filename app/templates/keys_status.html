@@ -123,6 +123,35 @@
             background-color: #059669;
         }
         
+        .add-btn:disabled {
+            background-color: #65d1a7;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+        
+        .validate-btn {
+            background-color: #3b82f6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .validate-btn:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        
+        .validate-btn:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+        
         .clear-btn {
             background-color: #e5e7eb;
             color: #374151;
@@ -130,6 +159,20 @@
         
         .clear-btn:hover {
             background-color: #d1d5db;
+        }
+        
+        .clear-btn:disabled {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+        
+        /* 统一按钮禁用样式 */
+        button:disabled {
+            pointer-events: none;
+            cursor: not-allowed !important;
         }
         
         /* 移动端适配 */
@@ -186,8 +229,32 @@
             background-color: #c0392b;
         }
         
+        .remove-btn:disabled {
+            background-color: #f1a9a0;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+        
         .remove-btn i {
             margin-right: 5px;
+        }
+        
+        .verify-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+        }
+        
+        .verify-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .verify-btn:disabled {
+            background-color: #a9cce3;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
         }
         
         /* 弹框样式优化 */
@@ -288,8 +355,9 @@
         }
         
         .status-added {
-            background-color: rgba(40, 167, 69, 0.2);
-            color: #28a745;
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, 0.3);
         }
         
         .key-text {
@@ -459,6 +527,35 @@
         .confirm-no:hover {
             background-color: #95a5a6;
         }
+        
+        /* 结果显示样式 */
+        .result-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .result-section h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #eee;
+            font-size: 1rem;
+        }
+        
+        .key-result-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .key-result-item {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            border-radius: 5px;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -474,19 +571,23 @@
     <div class="input-container">
         <textarea 
             id="keysInput" 
-            placeholder="输入一个或多个API密钥，每行一个或使用英文逗号分隔" 
+            placeholder="输入一个或多个API密钥，支持每行一个、逗号分隔或JSON数组格式如 [&quot;key1&quot;,&quot;key2&quot;]" 
             class="form-control"
             spellcheck="false"
         ></textarea>
         <p class="help-text">
             <i class="fas fa-info-circle"></i>
-            支持批量添加，可以直接粘贴多个密钥
+            支持多种格式：每行一个密钥、逗号分隔或JSON数组格式
         </p>
     </div>
     <div class="action-buttons">
         <button class="add-btn" onclick="addKeys()">
             <i class="fas fa-plus-circle"></i>
             <span>添加密钥</span>
+        </button>
+        <button class="validate-btn" onclick="batchValidateKeys()">
+            <i class="fas fa-check-double"></i>
+            <span>批量验证</span>
         </button>
         <button class="clear-btn" onclick="clearInput()">
             <i class="fas fa-eraser"></i>
@@ -640,10 +741,59 @@
             </div>
         </div>
     </div>
+
+    <div class="copyright">
+        © <script>document.write(new Date().getFullYear())</script> by
+        <a href="https://github.com/snailyp/gemini-balance" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+    </div>
     
     <script src="/static/js/keys_status.js"></script>
     <script>
-        // 密钥管理相关函数
+        // 辅助函数：解析各种格式的密钥输入
+        function parseKeysInput(input) {
+            if (!input || typeof input !== 'string') {
+                return [];
+            }
+            
+            input = input.trim();
+            
+            // 检查是否为JSON数组格式
+            if (input.startsWith('[') && input.endsWith(']')) {
+                try {
+                    const parsed = JSON.parse(input);
+                    if (Array.isArray(parsed)) {
+                        return parsed.map(k => String(k).trim()).filter(k => k);
+                    }
+                } catch (e) {
+                    console.log('JSON解析失败:', e);
+                    // 继续尝试其他格式
+                }
+            }
+            
+            // 检查是否包含逗号，如果包含则按逗号分隔
+            if (input.includes(',')) {
+                return input.split(',').map(k => k.trim()).filter(k => k);
+            }
+            
+            // 默认按换行符分隔
+            return input.split('\n').map(k => k.trim()).filter(k => k);
+        }
+        
+        // 检测原始输入格式并保持一致
+        function formatKeysOutput(originalInput, keys) {
+            // 如果没有密钥，返回空字符串
+            if (!keys || keys.length === 0) {
+                return '';
+            }
+            
+            // 检查原始输入是否为JSON格式
+            if (originalInput.trim().startsWith('[') && originalInput.trim().endsWith(']')) {
+                return JSON.stringify(keys);
+            }
+            
+            // 默认使用换行符分隔
+            return keys.join('\n');
+        }
         
         // 添加密钥
         async function addKeys() {
@@ -653,18 +803,31 @@
                 return;
             }
             
-            let keys;
+            // 禁用所有操作按钮，防止重复点击
+            const addBtn = document.querySelector('.add-btn');
+            const validateBtn = document.querySelector('.validate-btn');
+            const clearBtn = document.querySelector('.clear-btn');
+            
+            // 保存原始HTML内容
+            const originalAddBtnHtml = addBtn.innerHTML;
+            
+            // 禁用按钮并显示加载状态
+            addBtn.disabled = true;
+            validateBtn.disabled = true;
+            clearBtn.disabled = true;
+            addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>添加中...</span>';
+            
             try {
-                // 先尝试按逗号分隔
-                if (keysInput.includes(',')) {
-                    keys = keysInput.split(',').map(k => k.trim()).filter(k => k);
-                } else {
-                    // 再尝试按换行分隔
-                    keys = keysInput.split('\n').map(k => k.trim()).filter(k => k);
-                }
+                // 使用辅助函数解析输入
+                const keys = parseKeysInput(keysInput);
                 
-                if (!keys || keys.length === 0) {
+                if (keys.length === 0) {
                     showCopyStatus('未找到有效密钥', 'error');
+                    // 恢复按钮状态
+                    addBtn.disabled = false;
+                    validateBtn.disabled = false;
+                    clearBtn.disabled = false;
+                    addBtn.innerHTML = originalAddBtnHtml;
                     return;
                 }
                 
@@ -701,17 +864,42 @@
                         message += `</div></div>`;
                     }
                     
-                    if (result.existing_keys && result.existing_keys.length > 0) {
-                        message += `<p><strong>已存在:</strong></p><ul>`;
-                        result.existing_keys.forEach(key => {
-                            message += `<li>
-                                <span class="status-badge status-existing">
-                                    <i class="fas fa-exclamation-circle"></i> 已存在
-                                </span>
-                                <span class="key-text">${key}</span>
-                            </li>`;
+                    if (result.invalid_keys && result.invalid_keys.length > 0) {
+                        message += `
+                        <div class="result-section">
+                            <h4>无效密钥:</h4>
+                            <div class="key-result-list">`;
+                        
+                        result.invalid_keys.forEach(key => {
+                            message += `
+                                <div class="key-result-item">
+                                    <span class="status-badge status-invalid">
+                                        <i class="fas fa-times-circle"></i> 无效
+                                    </span>
+                                    <span class="key-text" style="color: #e74c3c; font-weight: bold;">${key}</span></li>
+                                </div>`;
                         });
-                        message += `</ul>`;
+                        
+                        message += `</div></div>`;
+                    }
+                    
+                    if (result.existing_keys && result.existing_keys.length > 0) {
+                        message += `
+                        <div class="result-section">
+                            <h4>已存在:</h4>
+                            <div class="key-result-list">`;
+                        
+                        result.existing_keys.forEach(key => {
+                            message += `
+                                <div class="key-result-item">
+                                    <span class="status-badge status-existing">
+                                        <i class="fas fa-exclamation-circle"></i> 已存在
+                                    </span>
+                                    <span class="key-text" style="color: #f39c12; font-weight: bold;">${key}</span></li>
+                                </div>`;
+                        });
+                        
+                        message += `</div></div>`;
                     }
                     
                     showModal('添加密钥结果', message);
@@ -722,13 +910,161 @@
                         setTimeout(() => {
                             window.location.reload();
                         }, 2000);
+                    } else {
+                        // 如果没有成功添加，恢复按钮状态
+                        addBtn.disabled = false;
+                        validateBtn.disabled = false;
+                        clearBtn.disabled = false;
+                        addBtn.innerHTML = originalAddBtnHtml;
                     }
                 } else {
                     showModal('添加失败', `<p>${result.message}</p>`);
+                    // 恢复按钮状态
+                    addBtn.disabled = false;
+                    validateBtn.disabled = false;
+                    clearBtn.disabled = false;
+                    addBtn.innerHTML = originalAddBtnHtml;
                 }
             } catch (error) {
                 console.error('添加密钥失败:', error);
                 showCopyStatus('添加密钥失败，请检查输入格式', 'error');
+                // 恢复按钮状态
+                addBtn.disabled = false;
+                validateBtn.disabled = false;
+                clearBtn.disabled = false;
+                addBtn.innerHTML = originalAddBtnHtml;
+            }
+        }
+        
+        // 批量验证密钥
+        async function batchValidateKeys() {
+            // 获取输入框中的密钥
+            const keysInput = document.getElementById('keysInput').value.trim();
+            if (!keysInput) {
+                showCopyStatus('请输入要验证的密钥', 'error');
+                return;
+            }
+            
+            // 禁用所有操作按钮，防止重复点击
+            const addBtn = document.querySelector('.add-btn');
+            const validateBtn = document.querySelector('.validate-btn');
+            const clearBtn = document.querySelector('.clear-btn');
+            
+            // 保存原始HTML内容
+            const originalValidateBtnHtml = validateBtn.innerHTML;
+            
+            // 禁用按钮并显示加载状态
+            addBtn.disabled = true;
+            validateBtn.disabled = true;
+            clearBtn.disabled = true;
+            validateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>验证中...</span>';
+            
+            try {
+                // 使用辅助函数解析输入
+                const keys = parseKeysInput(keysInput);
+                
+                if (keys.length === 0) {
+                    showCopyStatus('未找到有效密钥', 'error');
+                    // 恢复按钮状态
+                    addBtn.disabled = false;
+                    validateBtn.disabled = false;
+                    clearBtn.disabled = false;
+                    validateBtn.innerHTML = originalValidateBtnHtml;
+                    return;
+                }
+                
+                // 使用5秒的较长显示时间，确保用户能看到提示
+                showCopyStatus(`正在验证 ${keys.length} 个密钥，请稍候...`, 'info', 5000);
+                
+                const response = await fetch('/gemini/v1beta/verify-keys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ keys: keys })
+                });
+                
+                const result = await response.json();
+                
+                if (result.results) {
+                    // 收集有效和无效的密钥
+                    const validKeys = [];
+                    const invalidKeys = [];
+                    
+                    for (const [key, info] of Object.entries(result.results)) {
+                        if (info.status === 'valid') {
+                            validKeys.push(key);
+                        } else {
+                            invalidKeys.push(key);
+                        }
+                    }
+                    
+                    // 构建结果消息
+                    let message = `<p>验证完成：${validKeys.length} 个有效，${invalidKeys.length} 个无效</p>`;
+                    if (result.summary && result.summary.elapsed_seconds) {
+                        message += `<p>验证耗时: ${result.summary.elapsed_seconds} 秒</p>`;
+                    }
+                    
+                    if (validKeys.length > 0) {
+                        message += `
+                        <div class="result-section">
+                            <h4>有效密钥 (已保留):</h4>
+                            <div class="key-result-list">`;
+                        
+                        validKeys.forEach(key => {
+                            message += `
+                                <div class="key-result-item">
+                                    <span class="status-badge status-valid">
+                                        <i class="fas fa-check-circle"></i> 有效
+                                    </span>
+                                    <span class="key-text" style="color: #2ecc71; font-weight: bold;">${key}</span></li>
+                                </div>`;
+                        });
+                        
+                        message += `</div></div>`;
+                    }
+                    
+                    if (invalidKeys.length > 0) {
+                        message += `
+                        <div class="result-section">
+                            <h4>无效密钥 (已移除):</h4>
+                            <div class="key-result-list">`;
+                        
+                        invalidKeys.forEach(key => {
+                            message += `
+                                <div class="key-result-item">
+                                    <span class="status-badge status-invalid">
+                                        <i class="fas fa-times-circle"></i> 无效
+                                    </span>
+                                    <span class="key-text" style="color: #e74c3c; font-weight: bold;">${key}</span></li>
+                                </div>`;
+                        });
+                        
+                        message += `</div></div>`;
+                    }
+                    
+                    // 更新输入框，只保留有效的密钥，保持原始格式
+                    if (validKeys.length > 0) {
+                        document.getElementById('keysInput').value = formatKeysOutput(keysInput, validKeys);
+                        showCopyStatus(`保留了 ${validKeys.length} 个有效密钥`, 'success');
+                    } else {
+                        document.getElementById('keysInput').value = '';
+                        showCopyStatus('未找到有效密钥，已清空输入框', 'warning');
+                    }
+                    
+                    showModal('验证结果', message);
+                } else {
+                    showModal('验证失败', `<p>${result.message || '验证过程出现错误'}</p>`);
+                }
+            } catch (error) {
+                console.error('验证密钥失败:', error);
+                showCopyStatus('验证密钥失败，请稍后重试', 'error');
+            } finally {
+                // 恢复按钮状态
+                addBtn.disabled = false;
+                validateBtn.disabled = false;
+                clearBtn.disabled = false;
+                validateBtn.innerHTML = originalValidateBtnHtml;
             }
         }
         
@@ -785,6 +1121,33 @@
         async function removeKey(key) {
             closeConfirmModal();
             
+            // 找到对应的删除按钮
+            const keyRows = document.querySelectorAll('.key-list ul li');
+            let targetRow = null;
+            let removeButton = null;
+            let actionContainer = null;
+            let originalHtml = '';
+            
+            for (const row of keyRows) {
+                const keyText = row.querySelector('.key-text').textContent;
+                if (keyText === key) {
+                    targetRow = row;
+                    actionContainer = row.querySelector('.key-actions');
+                    removeButton = actionContainer.querySelector('.remove-btn');
+                    break;
+                }
+            }
+            
+            if (removeButton) {
+                // 禁用该行所有按钮
+                const allButtons = actionContainer.querySelectorAll('button');
+                allButtons.forEach(btn => btn.disabled = true);
+                
+                // 保存原始HTML内容并显示删除中状态
+                originalHtml = removeButton.innerHTML;
+                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 删除中...';
+            }
+            
             try {
                 const response = await fetch('/api/keys/remove', {
                     method: 'POST',
@@ -798,16 +1161,43 @@
                 
                 if (result.status === 'success') {
                     showCopyStatus(`密钥已成功删除`, 'success');
+                    
+                    // 添加视觉反馈，淡出效果
+                    if (targetRow) {
+                        targetRow.style.transition = 'all 0.5s ease';
+                        targetRow.style.opacity = '0';
+                        targetRow.style.height = '0';
+                        targetRow.style.overflow = 'hidden';
+                    }
+                    
                     // 短暂延迟后刷新页面
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
                 } else {
                     showModal('删除失败', `<p>${result.message}</p>`);
+                    
+                    // 恢复按钮状态
+                    if (actionContainer) {
+                        const allButtons = actionContainer.querySelectorAll('button');
+                        allButtons.forEach(btn => btn.disabled = false);
+                        if (removeButton) {
+                            removeButton.innerHTML = originalHtml;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('删除密钥失败:', error);
                 showCopyStatus('删除密钥失败，请稍后重试', 'error');
+                
+                // 恢复按钮状态
+                if (actionContainer) {
+                    const allButtons = actionContainer.querySelectorAll('button');
+                    allButtons.forEach(btn => btn.disabled = false);
+                    if (removeButton) {
+                        removeButton.innerHTML = originalHtml;
+                    }
+                }
             }
         }
         
