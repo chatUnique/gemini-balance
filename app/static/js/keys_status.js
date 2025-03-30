@@ -50,23 +50,42 @@ function copyKey(key) {
         });
 }
 
-function showCopyStatus(message, type = 'success') {
+function showCopyStatus(message, type = 'success', duration = 2000) {
     const statusElement = document.getElementById('copyStatus');
     statusElement.textContent = message;
-    statusElement.className = type; // 设置样式类
+    
+    // 重置所有样式
+    statusElement.className = '';
+    
+    // 添加类型样式
+    statusElement.classList.add(type);
+    
+    // 显示消息
     statusElement.style.opacity = 1;
+    
+    // 设置定时器隐藏消息
     setTimeout(() => {
         statusElement.style.opacity = 0;
+        
+        // 彻底清除所有样式
         setTimeout(() => {
-            statusElement.className = ''; // 清除样式类
+            statusElement.className = '';
         }, 300);
-    }, 2000);
+    }, duration);
 }
 
 async function verifyKey(key, button) {
     try {
-        // 禁用按钮并显示加载状态
-        button.disabled = true;
+        // 获取按钮所在的操作容器
+        const actionContainer = button.closest('.key-actions');
+        const allButtons = actionContainer.querySelectorAll('button');
+        
+        // 禁用该行的所有按钮
+        allButtons.forEach(btn => {
+            btn.disabled = true;
+        });
+        
+        // 保存原始HTML并显示加载状态
         const originalHtml = button.innerHTML;
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 验证中';
 
@@ -87,13 +106,29 @@ async function verifyKey(key, button) {
         // 3秒后恢复按钮原始状态
         setTimeout(() => {
             button.innerHTML = originalHtml;
-            button.disabled = false;
-            button.style.backgroundColor = '';
+            
+            // 恢复所有按钮
+            allButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+            
+            // 逐渐恢复背景色
+            setTimeout(() => {
+                button.style.backgroundColor = '';
+            }, 500);
         }, 3000);
 
     } catch (error) {
         console.error('验证失败:', error);
         showCopyStatus('验证请求失败', 'error');
+        
+        // 恢复按钮状态
+        const actionContainer = button.closest('.key-actions');
+        const allButtons = actionContainer.querySelectorAll('button');
+        allButtons.forEach(btn => {
+            btn.disabled = false;
+        });
+        
         button.disabled = false;
         button.innerHTML = '<i class="fas fa-check-circle"></i> 验证';
     }
