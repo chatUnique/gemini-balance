@@ -13,6 +13,453 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/keys_status.css">
+    <style>
+        /* 添加新的样式 */
+        .key-management {
+            background: #3a3f4b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 0 0 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        .key-management:hover {
+            box-shadow: 0 12px 32px rgba(118, 75, 162, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .key-management h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        
+        .key-management h2 i {
+            margin-right: 10px;
+            color: #a78bfa;
+        }
+        
+        .input-container {
+            position: relative;
+            margin-bottom: 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .input-container textarea {
+            width: 100%;
+            min-height: 100px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            color: #333333;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        .input-container textarea:focus {
+            border-color: #764ba2;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(118, 75, 162, 0.2);
+        }
+        
+        .input-container textarea::placeholder {
+            color: #666666;
+        }
+        
+        .help-text {
+            font-size: 0.8rem;
+            color: #cccccc;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .help-text i {
+            color: #a78bfa;
+            margin-right: 6px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-buttons button {
+            flex: 1;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .add-btn {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        .add-btn:hover {
+            background-color: #059669;
+        }
+        
+        .clear-btn {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+        
+        .clear-btn:hover {
+            background-color: #d1d5db;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 640px) {
+            .key-management {
+                padding: 15px;
+            }
+            
+            .action-buttons {
+                flex-direction: row;
+            }
+        }
+        
+        /* 修改密钥项样式 */
+        .key-list ul li {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .key-list ul li:hover {
+            background-color: rgba(118, 75, 162, 0.1);
+        }
+        
+        .key-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .key-actions button {
+            padding: 5px 10px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .key-actions button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .remove-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .remove-btn i {
+            margin-right: 5px;
+        }
+        
+        /* 弹框样式优化 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background-color: #1e1e2d;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            animation: modalFadeIn 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-title {
+            color: #ffffff;
+            padding: 20px;
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #252536;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            color: #e0e0e0;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .result-summary {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+        
+        .result-section {
+            margin-top: 15px;
+        }
+        
+        .result-section h4 {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        
+        .key-result-list {
+            background-color: #2a2a3a;
+            border-radius: 8px;
+            padding: 5px;
+        }
+        
+        .key-result-item {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .key-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 10px;
+            font-weight: 500;
+        }
+        
+        .status-existing {
+            background-color: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+        
+        .status-added {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+        }
+        
+        .key-text {
+            font-family: monospace;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+            white-space: nowrap;
+        }
+        
+        .modal-buttons {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: flex-end;
+            background-color: #252536;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .confirm-btn {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .confirm-btn:hover {
+            background-color: #0ea271;
+            transform: translateY(-2px);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            color: #ffffff;
+            transform: rotate(90deg);
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 640px) {
+            .modal-content {
+                width: 95%;
+            }
+            
+            .key-text {
+                max-width: 180px;
+            }
+        }
+        
+        /* 加强反馈 */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            margin-right: 10px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-badge i {
+            margin-right: 4px;
+        }
+        
+        .status-valid {
+            background-color: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+        
+        .status-invalid {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+        
+        /* 确认删除弹窗 */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .confirm-modal-content {
+            background-color: #1a1a2e;
+            border-radius: 10px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: popIn 0.3s ease;
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .confirm-modal-title {
+            color: #fff;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .confirm-modal-body {
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .confirm-modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .confirm-btn {
+            padding: 8px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .confirm-yes {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .confirm-yes:hover {
+            background-color: #c0392b;
+        }
+        
+        .confirm-no {
+            background-color: #7f8c8d;
+            color: white;
+        }
+        
+        .confirm-no:hover {
+            background-color: #95a5a6;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -20,6 +467,34 @@
             <i class="fas fa-sync-alt"></i>
         </button>
         <h1>API密钥状态</h1>
+        
+        <!-- 添加密钥管理部分 -->
+<div class="key-management">
+    <h2><i class="fas fa-key"></i> 添加密钥</h2>
+    <div class="input-container">
+        <textarea 
+            id="keysInput" 
+            placeholder="输入一个或多个API密钥，每行一个或使用英文逗号分隔" 
+            class="form-control"
+            spellcheck="false"
+        ></textarea>
+        <p class="help-text">
+            <i class="fas fa-info-circle"></i>
+            支持批量添加，可以直接粘贴多个密钥
+        </p>
+    </div>
+    <div class="action-buttons">
+        <button class="add-btn" onclick="addKeys()">
+            <i class="fas fa-plus-circle"></i>
+            <span>添加密钥</span>
+        </button>
+        <button class="clear-btn" onclick="clearInput()">
+            <i class="fas fa-eraser"></i>
+            <span>清空输入</span>
+        </button>
+    </div>
+</div>
+        
         <div class="key-list">
             <h2 onclick="toggleSection(this, 'validKeys')">
                 <span>
@@ -54,6 +529,10 @@
                             <button class="copy-btn" onclick="copyKey('{{ key }}')">
                                 <i class="fas fa-copy"></i>
                                 复制
+                            </button>
+                            <button class="remove-btn" onclick="confirmRemoveKey('{{ key }}')">
+                                <i class="fas fa-trash"></i>
+                                删除
                             </button>
                         </div>
                     </li>
@@ -96,6 +575,10 @@
                                 <i class="fas fa-copy"></i>
                                 复制
                             </button>
+                            <button class="remove-btn" onclick="confirmRemoveKey('{{ key }}')">
+                                <i class="fas fa-trash"></i>
+                                删除
+                            </button>
                         </div>
                     </li>
                 {% endfor %}
@@ -117,12 +600,209 @@
     </div>
 
     <div id="copyStatus"></div>
+    
+    <!-- 添加结果弹窗 -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="modal-title" id="modalTitle">添加密钥结果</h3>
+            <div class="modal-body" id="modalBody">
+                <p class="result-summary">成功添加 0 个密钥, 1 个已存在</p>
+                
+                <div class="result-section">
+                    <h4>已存在:</h4>
+                    <div class="key-result-list">
+                        <div class="key-result-item">
+                            <span class="status-badge status-existing">
+                                <i class="fas fa-exclamation-circle"></i> 已存在
+                            </span>
+                            <span class="key-text">EXAMPLE_KEY_12345678</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="confirm-btn" onclick="closeModal()">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 确认删除弹窗 -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-modal-content">
+            <h3 class="confirm-modal-title">确认删除</h3>
+            <div class="confirm-modal-body">确定要删除这个密钥吗？此操作无法撤销。</div>
+            <div class="confirm-modal-buttons">
+                <button class="confirm-btn confirm-yes" id="confirmYesBtn">确认删除</button>
+                <button class="confirm-btn confirm-no" onclick="closeConfirmModal()">取消</button>
+            </div>
+        </div>
+    </div>
 
     <div class="copyright">
-        © <script>document.write(new Date().getFullYear())</script> by <a href="https://linux.do/u/snaily" target="_blank"><img src="https://linux.do/user_avatar/linux.do/snaily/288/306510_2.gif" alt="snaily">snaily</a> | 
+        © <script>document.write(new Date().getFullYear())</script> by
         <a href="https://github.com/snailyp/gemini-balance" target="_blank"><i class="fab fa-github"></i> GitHub</a>
     </div>
     
     <script src="/static/js/keys_status.js"></script>
+    <script>
+        // 密钥管理相关函数
+        
+        // 添加密钥
+        async function addKeys() {
+            const keysInput = document.getElementById('keysInput').value.trim();
+            if (!keysInput) {
+                showCopyStatus('请输入要添加的密钥', 'error');
+                return;
+            }
+            
+            let keys;
+            try {
+                // 先尝试按逗号分隔
+                if (keysInput.includes(',')) {
+                    keys = keysInput.split(',').map(k => k.trim()).filter(k => k);
+                } else {
+                    // 再尝试按换行分隔
+                    keys = keysInput.split('\n').map(k => k.trim()).filter(k => k);
+                }
+                
+                if (!keys || keys.length === 0) {
+                    showCopyStatus('未找到有效密钥', 'error');
+                    return;
+                }
+                
+                const response = await fetch('/api/keys/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(keys)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // 构建结果消息
+                    let message = `<p>${result.message}</p>`;
+                    
+                    if (result.added_keys && result.added_keys.length > 0) {
+                        message += `
+                        <div class="result-section">
+                            <h4>成功添加:</h4>
+                            <div class="key-result-list">`;
+                        
+                        result.added_keys.forEach(key => {
+                            message += `
+                                <div class="key-result-item">
+                                    <span class="status-badge status-added">
+                                        <i class="fas fa-check-circle"></i> 已添加
+                                    </span>
+                                    <span class="key-text" style="color: #2ecc71; font-weight: bold;">${key}</span></li>
+                                </div>`;
+                        });
+                        
+                        message += `</div></div>`;
+                    }
+                    
+                    if (result.existing_keys && result.existing_keys.length > 0) {
+                        message += `<p><strong>已存在:</strong></p><ul>`;
+                        result.existing_keys.forEach(key => {
+                            message += `<li>
+                                <span class="status-badge status-existing">
+                                    <i class="fas fa-exclamation-circle"></i> 已存在
+                                </span>
+                                <span class="key-text">${key}</span>
+                            </li>`;
+                        });
+                        message += `</ul>`;
+                    }
+                    
+                    showModal('添加密钥结果', message);
+                    document.getElementById('keysInput').value = '';
+                    
+                    // 如果成功添加了密钥，刷新页面
+                    if (result.added_keys && result.added_keys.length > 0) {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                } else {
+                    showModal('添加失败', `<p>${result.message}</p>`);
+                }
+            } catch (error) {
+                console.error('添加密钥失败:', error);
+                showCopyStatus('添加密钥失败，请检查输入格式', 'error');
+            }
+        }
+        
+        // 确认删除密钥
+        function confirmRemoveKey(key) {
+            const confirmYesBtn = document.getElementById('confirmYesBtn');
+            confirmYesBtn.onclick = () => removeKey(key);
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+        
+        // 关闭确认删除弹窗
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+        
+        // 删除密钥
+        async function removeKey(key) {
+            closeConfirmModal();
+            
+            try {
+                const response = await fetch('/api/keys/remove', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify([key])
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showCopyStatus(`密钥已成功删除`, 'success');
+                    // 短暂延迟后刷新页面
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showModal('删除失败', `<p>${result.message}</p>`);
+                }
+            } catch (error) {
+                console.error('删除密钥失败:', error);
+                showCopyStatus('删除密钥失败，请稍后重试', 'error');
+            }
+        }
+        
+        // 显示弹窗
+        function showModal(title, bodyHTML) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = bodyHTML;
+            document.getElementById('resultModal').style.display = 'flex';
+        }
+        
+        // 关闭弹窗
+        function closeModal() {
+            document.getElementById('resultModal').style.display = 'none';
+        }
+        
+        // 点击模态框背景时关闭模态框
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('resultModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+            
+            const confirmModal = document.getElementById('confirmModal');
+            if (event.target === confirmModal) {
+                closeConfirmModal();
+            }
+        });
+    </script>
 </body>
 </html>
