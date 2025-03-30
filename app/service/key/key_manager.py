@@ -1,6 +1,6 @@
 import asyncio
 from itertools import cycle
-from typing import Dict
+from typing import Dict, List, Union, Tuple
 
 from app.config.config import settings
 from app.log.logger import get_key_manager_logger
@@ -80,6 +80,96 @@ class KeyManager:
                     invalid_keys[key] = fail_count
 
         return {"valid_keys": valid_keys, "invalid_keys": invalid_keys}
+    
+    async def add_keys(self, keys: Union[str, List[str]]) -> Tuple[List[str], List[str]]:
+        """
+        添加一个或多个API密钥
+        
+        Args:
+            keys: 单个密钥字符串或密钥列表
+            
+        Returns:
+            Tuple[List[str], List[str]]: 成功添加的密钥列表和已存在的密钥列表
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+            
+        added_keys = []
+        existing_keys = []
+        
+        async with self.key_cycle_lock:
+            # 重建key_cycle
+            self.api_keys = list(self.api_keys)  # 确保是可变列表
+            
+            for key in keys:
+                key = key.strip()
+                if not key:  # 跳过空键
+                    continue
+                    
+                if key in self.api_keys:
+                    existing_keys.append(key)
+                    continue
+                
+                self.api_keys.append(key)
+                added_keys.append(key)
+                
+                # 更新失败计数字典
+                async with self.failure_count_lock:
+                    self.key_failure_counts[key] = 0
+            
+            # 重新创建cycle迭代器
+            self.key_cycle = cycle(self.api_keys)
+            
+        logger.info(f"Added {len(added_keys)} new API keys")
+        return added_keys, existing_keys
+    
+    async def remove_keys(self, keys: Union[str, List[str]]) -> Tuple[List[str], List[str]]:
+        """
+        删除一个或多个API密钥
+        
+        Args:
+            keys: 单个密钥字符串或密钥列表
+            
+        Returns:
+            Tuple[List[str], List[str]]: 成功删除的密钥列表和不存在的密钥列表
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+            
+        removed_keys = []
+        not_found_keys = []
+        
+        # 确保至少保留一个密钥
+        if len(self.api_keys) <= len(keys):
+            logger.warning("Cannot remove all API keys, at least one key must remain")
+            return [], keys
+        
+        async with self.key_cycle_lock:
+            # 重建key_cycle
+            self.api_keys = list(self.api_keys)  # 确保是可变列表
+            
+            for key in keys:
+                key = key.strip()
+                if not key:  # 跳过空键
+                    continue
+                    
+                if key not in self.api_keys:
+                    not_found_keys.append(key)
+                    continue
+                
+                self.api_keys.remove(key)
+                removed_keys.append(key)
+                
+                # 更新失败计数字典
+                async with self.failure_count_lock:
+                    if key in self.key_failure_counts:
+                        del self.key_failure_counts[key]
+            
+            # 重新创建cycle迭代器
+            self.key_cycle = cycle(self.api_keys)
+            
+        logger.info(f"Removed {len(removed_keys)} API keys")
+        return removed_keys, not_found_keys
 
 
 _singleton_instance = None
