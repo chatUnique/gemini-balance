@@ -204,6 +204,14 @@ li:hover {
     transform: translateY(0);
 }
 
+.copy-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    background: linear-gradient(135deg, #96a8f0 0%, #a98ec7 100%);
+}
+
 .copy-btn i {
     font-size: 14px;
 }
@@ -226,24 +234,47 @@ li:hover {
     left: 50%;
     transform: translate(-50%, -50%);
     padding: 15px 30px;
-    border-radius: 25px;
+    border-radius: 12px;
     font-weight: bold;
     opacity: 0;
     transition: all 0.3s ease;
     backdrop-filter: blur(5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     z-index: 1000;
     text-align: center;
-    min-width: 200px;
+    min-width: 220px;
     color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    font-size: 1rem;
 }
 
 #copyStatus.success {
-    background: rgba(39, 174, 96, 0.95);
+    background: #38a169;
+    color: #ffffff;
+    border: 2px solid #2f855a;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 #copyStatus.error {
-    background: rgba(231, 76, 60, 0.95);
+    background: #e53e3e;
+    color: #ffffff;
+    border: 2px solid #c53030;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+#copyStatus.info {
+    background: #4299e1;
+    color: #ffffff;
+    border: 2px solid #2b6cb0;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#copyStatus.warning {
+    background: #ed8936;
+    color: #ffffff;
+    border: 2px solid #dd6b20;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .status-badge {
