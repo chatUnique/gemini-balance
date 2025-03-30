@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import StreamingResponse, JSONResponse
 from copy import deepcopy
+import time
+from pydantic import BaseModel
 from app.config.config import settings
 from app.log.logger import get_gemini_logger
 from app.core.security import SecurityService
@@ -10,6 +12,11 @@ from app.service.key.key_manager import KeyManager, get_key_manager_instance
 from app.service.model.model_service import ModelService
 from app.handler.retry_handler import RetryHandler
 from app.core.constants import API_VERSION
+from typing import List, Dict, Any
+
+# 定义请求模型
+class KeysVerifyRequest(BaseModel):
+    keys: List[str]
 
 # 路由设置
 router = APIRouter(prefix=f"/gemini/{API_VERSION}")
@@ -152,27 +159,67 @@ async def verify_key(api_key: str):
     
     try:
         key_manager = await get_key_manager()
-        chat_service = GeminiChatService(settings.BASE_URL, key_manager)
         
-        # 使用generate_content接口测试key的有效性
-        gemini_request = GeminiRequest(
-            contents=[
-                GeminiContent(
-                    role="user",
-                    parts=[{"text": "hi"}]
-                )
-            ]
-        )
+        # 使用KeyManager的validate_key方法验证密钥
+        is_valid = await key_manager.validate_key(api_key)
         
-        response = await chat_service.generate_content(
-            settings.TEST_MODEL,
-            gemini_request, 
-            api_key
-        )
-        
-        if response:
+        if is_valid:
             return JSONResponse({"status": "valid"})
         return JSONResponse({"status": "invalid"})
     except Exception as e:
         logger.error(f"Key verification failed: {str(e)}")
         return JSONResponse({"status": "invalid", "error": str(e)})
+
+
+@router.post("/verify-keys")
+@router_v1beta.post("/verify-keys")
+async def verify_keys(request: KeysVerifyRequest):
+    """批量验证多个Gemini API密钥的有效性"""
+    logger.info("-" * 50 + "verify_multiple_gemini_keys" + "-" * 50)
+    keys = request.keys
+    key_count = len(keys)
+    logger.info(f"Verifying {key_count} API keys")
+    
+    # 记录开始时间
+    start_time = time.time()
+    
+    try:
+        key_manager = await get_key_manager()
+        
+        # 使用批量验证方法
+        results = await key_manager.validate_keys(keys)
+        
+        # 转换结果格式
+        formatted_results = {
+            key: {"status": "valid" if is_valid else "invalid"} 
+            for key, is_valid in results.items()
+        }
+        
+        # 添加统计信息
+        valid_count = sum(1 for is_valid in results.values() if is_valid)
+        invalid_count = len(results) - valid_count
+        
+        # 记录执行时间
+        elapsed_time = time.time() - start_time
+        logger.info(
+            f"Key validation completed in {elapsed_time:.2f} seconds. "
+            f"Total: {key_count}, Valid: {valid_count}, Invalid: {invalid_count}"
+        )
+        
+        return JSONResponse({
+            "results": formatted_results,
+            "summary": {
+                "total": key_count,
+                "valid": valid_count,
+                "invalid": invalid_count,
+                "elapsed_seconds": round(elapsed_time, 2)
+            }
+        })
+    except Exception as e:
+        # 记录错误执行时间
+        elapsed_time = time.time() - start_time
+        logger.error(f"Batch key verification failed in {elapsed_time:.2f} seconds: {str(e)}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"批量验证失败: {str(e)}"
+        }, status_code=500)
