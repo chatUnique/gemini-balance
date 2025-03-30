@@ -2,9 +2,10 @@
 路由配置模块，负责设置和配置应用程序的路由
 """
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, HTTPException, Body, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from typing import List, Union, Any
 
 from app.core.security import verify_auth_token
 from app.log.logger import get_routes_logger
@@ -32,8 +33,21 @@ def setup_routers(app: FastAPI) -> None:
     # 添加页面路由
     setup_page_routes(app)
 
+    # 添加API密钥管理路由
+    setup_key_management_routes(app)
+
     # 添加健康检查路由
     setup_health_routes(app)
+
+
+def verify_token(request: Request):
+    """
+    验证请求中的认证令牌
+    """
+    auth_token = request.cookies.get("auth_token")
+    if not auth_token or not verify_auth_token(auth_token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return auth_token
 
 
 def setup_page_routes(app: FastAPI) -> None:
@@ -97,6 +111,107 @@ def setup_page_routes(app: FastAPI) -> None:
         except Exception as e:
             logger.error(f"Error retrieving keys status: {str(e)}")
             raise
+
+
+def setup_key_management_routes(app: FastAPI) -> None:
+    """
+    设置API密钥管理相关的路由
+    
+    Args:
+        app: FastAPI应用程序实例
+    """
+    
+    def normalize_keys_input(keys_input: Any) -> List[str]:
+        """
+        处理各种格式的密钥输入，转换为标准的字符串列表
+        
+        Args:
+            keys_input: 各种类型的输入（字符串、列表等）
+            
+        Returns:
+            List[str]: 标准化后的密钥列表
+        """
+        # 如果已经是列表，确保列表中的每个元素都是字符串
+        if isinstance(keys_input, list):
+            return [str(key).strip() for key in keys_input if key and str(key).strip()]
+        
+        # 如果是字符串，尝试按逗号或换行符切分
+        if isinstance(keys_input, str):
+            keys_str = keys_input.strip()
+            if ',' in keys_str:
+                return [key.strip() for key in keys_str.split(',') if key.strip()]
+            else:
+                return [key.strip() for key in keys_str.split('\n') if key.strip()]
+        
+        # 其他类型，尝试转换为字符串后处理
+        try:
+            return normalize_keys_input(str(keys_input))
+        except:
+            return []
+    
+    @app.post("/api/keys/add")
+    async def add_keys(
+        keys: Any = Body(..., description="要添加的API密钥，支持字符串、数组或逗号分隔的列表"),
+        _=Depends(verify_token)
+    ):
+        """添加一个或多个API密钥"""
+        try:
+            # 标准化输入
+            keys_list = normalize_keys_input(keys)
+            
+            if not keys_list:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "未提供有效的密钥"
+                }, status_code=400)
+            
+            key_manager = await get_key_manager_instance()
+            added_keys, existing_keys = await key_manager.add_keys(keys_list)
+            
+            return JSONResponse({
+                "status": "success",
+                "message": f"成功添加 {len(added_keys)} 个密钥, {len(existing_keys)} 个已存在",
+                "added_keys": added_keys,
+                "existing_keys": existing_keys
+            })
+        except Exception as e:
+            logger.error(f"Error adding keys: {str(e)}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"添加密钥失败: {str(e)}"
+            }, status_code=500)
+    
+    @app.post("/api/keys/remove")
+    async def remove_keys(
+        keys: Any = Body(..., description="要删除的API密钥，支持字符串、数组或逗号分隔的列表"),
+        _=Depends(verify_token)
+    ):
+        """删除一个或多个API密钥"""
+        try:
+            # 标准化输入
+            keys_list = normalize_keys_input(keys)
+            
+            if not keys_list:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "未提供有效的密钥"
+                }, status_code=400)
+            
+            key_manager = await get_key_manager_instance()
+            removed_keys, not_found_keys = await key_manager.remove_keys(keys_list)
+            
+            return JSONResponse({
+                "status": "success",
+                "message": f"成功删除 {len(removed_keys)} 个密钥, {len(not_found_keys)} 个未找到",
+                "removed_keys": removed_keys,
+                "not_found_keys": not_found_keys
+            })
+        except Exception as e:
+            logger.error(f"Error removing keys: {str(e)}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"删除密钥失败: {str(e)}"
+            }, status_code=500)
 
 
 def setup_health_routes(app: FastAPI) -> None:
