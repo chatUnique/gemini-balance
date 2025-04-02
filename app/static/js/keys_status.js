@@ -94,10 +94,76 @@ async function verifyKey(key, button) {
         });
         const data = await response.json();
 
+        // 获取当前行
+        const keyRow = button.closest('li');
+        
+        // 确定当前密钥在哪个列表
+        const isInInvalidList = keyRow.closest('#invalidKeys') !== null;
+
         // 根据验证结果更新UI
         if (data.status === 'valid') {
             showCopyStatus('密钥验证成功', 'success');
             button.style.backgroundColor = '#27ae60';
+            
+            // 如果密钥在无效列表中且验证成功，将其移动到有效列表
+            if (isInInvalidList) {
+                // 创建一个API请求来修复密钥状态（重置其失败计数）
+                try {
+                    // 显示正在处理的状态
+                    showCopyStatus('密钥已验证有效，正在修复状态...', 'info', 2000);
+                    
+                    // 发送请求修复密钥状态
+                    const resetResponse = await fetch('/api/keys/reset-status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ keys: [key] })
+                    });
+                    
+                    const resetResult = await resetResponse.json();
+                    
+                    if (resetResult.status === 'success') {
+                        // 克隆当前行
+                        const clonedRow = keyRow.cloneNode(true);
+                        
+                        // 更新行内的状态标签
+                        const statusBadge = clonedRow.querySelector('.status-badge');
+                        statusBadge.className = 'status-badge status-valid';
+                        statusBadge.innerHTML = '<i class="fas fa-check"></i> 有效';
+                        
+                        // 将行添加到有效密钥列表
+                        document.getElementById('validKeys').appendChild(clonedRow);
+                        
+                        // 给新添加的行添加验证事件处理程序
+                        const newVerifyButton = clonedRow.querySelector('.verify-btn');
+                        const newCopyButton = clonedRow.querySelector('.copy-btn');
+                        const newRemoveButton = clonedRow.querySelector('.remove-btn');
+                        
+                        newVerifyButton.onclick = () => verifyKey(key, newVerifyButton);
+                        newCopyButton.onclick = () => copyKey(key);
+                        newRemoveButton.onclick = () => confirmRemoveKey(key);
+                        
+                        // 移除原行
+                        keyRow.remove();
+                        
+                        // 显示成功消息
+                        showCopyStatus('密钥已移动到有效列表', 'success');
+                        
+                        // 更新总数显示
+                        updateKeyCountDisplay();
+                        
+                        // 结束函数执行，因为原始行已被移除
+                        return;
+                    } else {
+                        // 如果修复失败，显示错误信息
+                        showCopyStatus('无法修复密钥状态：' + (resetResult.message || '未知错误'), 'error', 3000);
+                    }
+                } catch (resetError) {
+                    console.error('修复密钥状态失败:', resetError);
+                    showCopyStatus('修复密钥状态失败', 'error');
+                }
+            }
         } else {
             showCopyStatus('密钥验证失败', 'error');
             button.style.backgroundColor = '#e74c3c';
@@ -131,6 +197,18 @@ async function verifyKey(key, button) {
         
         button.disabled = false;
         button.innerHTML = '<i class="fas fa-check-circle"></i> 验证';
+    }
+}
+
+// 更新密钥数量显示
+function updateKeyCountDisplay() {
+    const validCount = document.getElementById('validKeys').children.length;
+    const invalidCount = document.getElementById('invalidKeys').children.length;
+    const totalCount = validCount + invalidCount;
+    
+    const totalElement = document.querySelector('.total');
+    if (totalElement) {
+        totalElement.innerHTML = `<i class="fas fa-key"></i> 总密钥数：${totalCount}`;
     }
 }
 
