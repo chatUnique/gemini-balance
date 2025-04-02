@@ -49,6 +49,33 @@ class KeyManager:
             for key in self.key_failure_counts:
                 self.key_failure_counts[key] = 0
 
+    async def reset_key_status(self, keys: Union[str, List[str]]) -> List[str]:
+        """
+        重置指定密钥的失败计数，使其变为有效状态
+        
+        Args:
+            keys: 单个密钥字符串或密钥列表
+            
+        Returns:
+            List[str]: 成功重置状态的密钥列表
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+            
+        reset_keys = []
+        
+        async with self.failure_count_lock:
+            for key in keys:
+                key = key.strip()
+                # 确保密钥存在且确实在失败计数字典中
+                if key in self.api_keys and key in self.key_failure_counts:
+                    # 重置失败计数
+                    self.key_failure_counts[key] = 0
+                    reset_keys.append(key)
+                    logger.info(f"重置密钥状态: {key[:5]}...")
+                
+        return reset_keys
+
     async def get_next_working_key(self) -> str:
         """获取下一可用的API key"""
         initial_key = await self.get_next_key()
@@ -124,6 +151,13 @@ class KeyManager:
                 # 只需检查响应状态码，无需解析响应内容
                 if response.status_code == 200:
                     logger.info(f"API key validation successful: {key[:5]}...")
+                    
+                    # 如果验证成功，重置该密钥的失败计数
+                    async with self.failure_count_lock:
+                        if key in self.key_failure_counts:
+                            self.key_failure_counts[key] = 0
+                            logger.info(f"Reset failure count for key: {key[:5]}...")
+                    
                     return True
                 else:
                     logger.warning(f"API key validation failed with status {response.status_code}: {key[:5]}...")
