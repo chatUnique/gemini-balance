@@ -223,6 +223,41 @@ def setup_key_management_routes(app: FastAPI) -> None:
                 "status": "error",
                 "message": f"删除密钥失败: {str(e)}"
             }, status_code=500)
+    
+    @app.post("/api/keys/reset-status")
+    async def reset_key_status(
+        keys: Any = Body(..., description="要重置状态的API密钥，支持字符串、数组或逗号分隔的列表"),
+        _=Depends(verify_token)
+    ):
+        """重置一个或多个API密钥的失败计数，使其变为有效状态"""
+        try:
+            # 标准化输入
+            keys_list = normalize_keys_input(keys)
+            
+            if not keys_list:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "未提供有效的密钥"
+                }, status_code=400)
+            
+            key_manager = await get_key_manager_instance()
+            
+            # 使用KeyManager的reset_key_status方法
+            reset_keys = await key_manager.reset_key_status(keys_list)
+            
+            logger.info(f"重置了 {len(reset_keys)} 个密钥的状态")
+            
+            return JSONResponse({
+                "status": "success",
+                "message": f"成功重置 {len(reset_keys)} 个密钥的状态",
+                "reset_keys": reset_keys
+            })
+        except Exception as e:
+            logger.error(f"Error resetting key status: {str(e)}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"重置密钥状态失败: {str(e)}"
+            }, status_code=500)
 
 
 def setup_health_routes(app: FastAPI) -> None:
