@@ -648,10 +648,16 @@
                     <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
                     无效密钥
                 </span>
-                <button class="copy-btn" onclick="event.stopPropagation(); copyKeys('invalid')">
-                    <i class="fas fa-copy"></i>
-                    批量复制
-                </button>
+                <div class="invalid-keys-actions">
+                    <button class="revalidate-all-btn" onclick="event.stopPropagation(); revalidateAllInvalidKeys()">
+                        <i class="fas fa-sync-alt"></i>
+                        重新验证所有
+                    </button>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyKeys('invalid')">
+                        <i class="fas fa-copy"></i>
+                        批量复制
+                    </button>
+                </div>
             </h2>
             <div class="key-content">
                 <ul id="invalidKeys">
@@ -740,6 +746,11 @@
                 <button class="confirm-btn confirm-no" onclick="closeConfirmModal()">取消</button>
             </div>
         </div>
+    </div>
+
+    <div class="copyright">
+        © <script>document.write(new Date().getFullYear())</script> by
+        <a href="https://github.com/snailyp/gemini-balance" target="_blank"><i class="fab fa-github"></i> GitHub</a>
     </div>
     
     <script src="/static/js/keys_status.js"></script>
@@ -1220,6 +1231,149 @@
                 closeConfirmModal();
             }
         });
+        
+        // 重新验证所有无效密钥
+        async function revalidateAllInvalidKeys() {
+            // 获取所有无效密钥
+            const invalidKeyElements = document.querySelectorAll('#invalidKeys li .key-text');
+            
+            if (invalidKeyElements.length === 0) {
+                showCopyStatus('没有无效密钥需要验证', 'info');
+                return;
+            }
+            
+            // 禁用重新验证按钮和其他相关按钮
+            const revalidateBtn = document.querySelector('.revalidate-all-btn');
+            const originalBtnHtml = revalidateBtn.innerHTML;
+            revalidateBtn.disabled = true;
+            revalidateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 验证中...';
+            
+            // 批量复制按钮也禁用
+            const copyBtn = document.querySelector('.invalid-keys-actions .copy-btn');
+            if (copyBtn) copyBtn.disabled = true;
+            
+            // 收集所有无效密钥
+            const invalidKeys = Array.from(invalidKeyElements).map(el => el.textContent.trim());
+            
+            // 显示正在处理的信息
+            showCopyStatus(`正在验证 ${invalidKeys.length} 个无效密钥...`, 'info', 3000);
+            
+            try {
+                // 调用批量验证API
+                const response = await fetch('/gemini/v1beta/verify-keys', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ keys: invalidKeys })
+                });
+                
+                const result = await response.json();
+                
+                if (result.results) {
+                    // 收集有效的密钥
+                    const recoveredKeys = [];
+                    const stillInvalidKeys = [];
+                    
+                    for (const [key, info] of Object.entries(result.results)) {
+                        if (info.status === 'valid') {
+                            recoveredKeys.push(key);
+                        } else {
+                            stillInvalidKeys.push(key);
+                        }
+                    }
+                    
+                    // 如果有恢复的密钥，发送请求重置它们的状态
+                    if (recoveredKeys.length > 0) {
+                        try {
+                            const resetResponse = await fetch('/api/keys/reset-status', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ keys: recoveredKeys })
+                            });
+                            
+                            const resetResult = await resetResponse.json();
+                            
+                            if (resetResult.status === 'success') {
+                                // 移动恢复的密钥到有效列表
+                                let movedCount = 0;
+                                
+                                for (const key of recoveredKeys) {
+                                    // 找到密钥对应的行
+                                    const keyRows = document.querySelectorAll('#invalidKeys li');
+                                    for (const row of keyRows) {
+                                        const keyText = row.querySelector('.key-text').textContent.trim();
+                                        if (keyText === key) {
+                                            // 克隆行
+                                            const clonedRow = row.cloneNode(true);
+                                            
+                                            // 更新状态标签
+                                            const statusBadge = clonedRow.querySelector('.status-badge');
+                                            statusBadge.className = 'status-badge status-valid';
+                                            statusBadge.innerHTML = '<i class="fas fa-check"></i> 有效';
+                                            
+                                            // 重新绑定事件处理程序
+                                            const newVerifyButton = clonedRow.querySelector('.verify-btn');
+                                            const newCopyButton = clonedRow.querySelector('.copy-btn');
+                                            const newRemoveButton = clonedRow.querySelector('.remove-btn');
+                                            
+                                            newVerifyButton.onclick = () => verifyKey(key, newVerifyButton);
+                                            newCopyButton.onclick = () => copyKey(key);
+                                            newRemoveButton.onclick = () => confirmRemoveKey(key);
+                                            
+                                            // 添加到有效列表
+                                            document.getElementById('validKeys').appendChild(clonedRow);
+                                            
+                                            // 移除原行
+                                            row.remove();
+                                            
+                                            movedCount++;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // 构建结果消息
+                                let message = `
+                                    <p>验证完成：</p>
+                                    <p>- 恢复有效：${recoveredKeys.length} 个</p>
+                                    <p>- 仍然无效：${stillInvalidKeys.length} 个</p>
+                                `;
+                                
+                                if (result.summary && result.summary.elapsed_seconds) {
+                                    message += `<p>验证耗时: ${result.summary.elapsed_seconds} 秒</p>`;
+                                }
+                                
+                                showModal('验证结果', message);
+                                
+                                // 更新总数显示
+                                updateKeyCountDisplay();
+                                
+                            } else {
+                                showModal('状态重置失败', `<p>${resetResult.message || '重置过程出现错误'}</p>`);
+                            }
+                        } catch (resetError) {
+                            console.error('重置密钥状态失败:', resetError);
+                            showCopyStatus('重置密钥状态失败', 'error');
+                        }
+                    } else {
+                        showCopyStatus(`验证完成，${invalidKeys.length} 个密钥仍然无效`, 'info');
+                    }
+                } else {
+                    showModal('验证失败', `<p>${result.message || '验证过程出现错误'}</p>`);
+                }
+            } catch (error) {
+                console.error('验证密钥失败:', error);
+                showCopyStatus('验证密钥失败，请稍后重试', 'error');
+            } finally {
+                // 恢复按钮状态
+                revalidateBtn.disabled = false;
+                revalidateBtn.innerHTML = originalBtnHtml;
+                if (copyBtn) copyBtn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
